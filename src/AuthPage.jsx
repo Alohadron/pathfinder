@@ -18,7 +18,7 @@ const Button = ({ children, className = '', ...props }) => (
 );
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState('login'); // login | signup | reset
   const [showPassword, setShowPassword] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState('');
 
@@ -27,7 +27,7 @@ export default function AuthPage() {
 
   const onSubmit = (data) => {
     console.log(data);
-    alert(`${isLogin ? 'Login' : 'Register'} successful!`);
+    alert(`${mode === 'login' ? 'Login' : mode === 'signup' ? 'Register' : 'Reset Password'} successful!`);
   };
 
   const handleOutlookLogin = () => {
@@ -74,15 +74,15 @@ export default function AuthPage() {
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className={`relative z-10 w-full ${isLogin ? 'max-w-md' : 'max-w-4xl'}`}
+        className={`relative z-10 w-full ${mode === 'signup' ? 'max-w-4xl' : 'max-w-md'}`}
       >
         <Card className="shadow-[0_0_40px_rgba(100,180,255,0.25)] rounded-3xl bg-gradient-to-br from-white/90 via-blue-50/70 to-blue-100/60 backdrop-blur-md border-[3px] border-blue-200/60">
           <CardContent className="p-10">
             <h2 className="text-3xl font-extrabold text-center text-blue-800 mb-8 tracking-wide drop-shadow-sm">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+              {mode === 'login' ? 'Welcome Back' : mode === 'signup' ? 'Create Account' : 'Reset Password'}
             </h2>
 
-            {!isLogin && (
+            {mode === 'signup' && (
               <>
                 <OutlookButton />
                 <div className="flex items-center my-6">
@@ -95,7 +95,7 @@ export default function AuthPage() {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <AnimatePresence mode="wait" initial={false}>
-                {!isLogin && (
+                {mode === 'signup' && (
                   <motion.div
                     key="register-fields"
                     initial={{ opacity: 0, y: 30 }}
@@ -170,9 +170,31 @@ export default function AuthPage() {
                     </div>
                   </motion.div>
                 )}
+
+                {mode === 'reset' && (
+                  <motion.div
+                    key="reset-password"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 0, transition: { duration: 0 } }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    className="space-y-6"
+                  >
+                    <div>
+                      <label htmlFor="resetEmail" className="block text-sm font-semibold text-blue-900">Enter your Outlook email</label>
+                      <input id="resetEmail" type="email" {...register('resetEmail', { required: 'Email is required' })} className="w-full p-3 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white/80 text-blue-900" placeholder="you@outlook.com" />
+                    </div>
+                    <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 hover:from-blue-700 hover:via-indigo-600 hover:to-cyan-500 text-white rounded-xl py-3 text-lg font-semibold shadow-[0_2px_10px_rgba(0,0,80,0.3)] transition-transform transform hover:scale-[1.03] animate-gradient-x">
+                      Send Reset Link
+                    </Button>
+                    <button type="button" onClick={() => setMode('login')} className="block w-full text-center text-blue-700 font-semibold hover:underline">
+                      Back to Login
+                    </button>
+                  </motion.div>
+                )}
               </AnimatePresence>
 
-              {isLogin && (
+              {mode === 'login' && (
                 <>
                   <div>
                     <label htmlFor="email" className="block text-sm font-semibold text-blue-900">Email</label>
@@ -186,34 +208,38 @@ export default function AuthPage() {
                     </button>
                   </div>
                   <div className="flex justify-end -mt-2">
-                    <button type="button" className="text-xs font-semibold text-blue-700 hover:text-blue-900 hover:underline" onClick={() => alert('Password reset flow coming soon.')}>Forgot password?</button>
+                    <button type="button" className="text-xs font-semibold text-blue-700 hover:text-blue-900 hover:underline" onClick={() => setMode('reset')}>Forgot password?</button>
                   </div>
                 </>
               )}
 
-              <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 hover:from-blue-700 hover:via-indigo-600 hover:to-cyan-500 text-white rounded-xl py-3 text-lg font-semibold shadow-[0_2px_10px_rgba(0,0,80,0.3)] transition-transform transform hover:scale-[1.03] animate-gradient-x">
-                {isLogin ? 'Login' : 'Register'}
-              </Button>
+              {mode !== 'reset' && (
+                <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 hover:from-blue-700 hover:via-indigo-600 hover:to-cyan-500 text-white rounded-xl py-3 text-lg font-semibold shadow-[0_2px_10px_rgba(0,0,80,0.3)] transition-transform transform hover:scale-[1.03] animate-gradient-x">
+                  {mode === 'login' ? 'Login' : 'Register'}
+                </Button>
+              )}
             </form>
 
-            <div className="text-center mt-6">
-              <p className="text-sm text-blue-700">
-                {isLogin ? "Don't have an account?" : 'Already have an account?'}
-                <button className="ml-1 text-blue-900 font-bold hover:underline" type="button" onClick={() => setIsLogin((prev) => !prev)}>
-                  {isLogin ? 'Sign up' : 'Login'}
-                </button>
-              </p>
-              {isLogin && (
-                <>
-                  <div className="flex items-center my-4">
-                    <div className="flex-1 h-px bg-blue-200"></div>
-                    <span className="px-3 text-blue-700 text-sm font-semibold">or</span>
-                    <div className="flex-1 h-px bg-blue-200"></div>
-                  </div>
-                  <OutlookButton />
-                </>
-              )}
-            </div>
+            {mode !== 'reset' && (
+              <div className="text-center mt-6">
+                <p className="text-sm text-blue-700">
+                  {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
+                  <button className="ml-1 text-blue-900 font-bold hover:underline" type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+                    {mode === 'login' ? 'Sign up' : 'Login'}
+                  </button>
+                </p>
+                {mode === 'login' && (
+                  <>
+                    <div className="flex items-center my-4">
+                      <div className="flex-1 h-px bg-blue-200"></div>
+                      <span className="px-3 text-blue-700 text-sm font-semibold">or</span>
+                      <div className="flex-1 h-px bg-blue-200"></div>
+                    </div>
+                    <OutlookButton />
+                  </>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
