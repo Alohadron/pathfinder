@@ -1,4 +1,3 @@
-// Preview + component: AbsenceSection with summer vacation message inside discipline section
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,62 +23,187 @@ import {
   Smile,
 } from "lucide-react";
 
-// ---------- Data & helpers ----------
+// ---------------- Constante generale ----------------
+
+const weekDays = ["Lun", "Mar", "Mie", "Joi", "Vin", "Sâm", "Dum"];
+const months = [
+  "Ianuarie",
+  "Februarie",
+  "Martie",
+  "Aprilie",
+  "Mai",
+  "Iunie",
+  "Iulie",
+  "August",
+  "Septembrie",
+  "Octombrie",
+  "Noiembrie",
+  "Decembrie",
+];
+
+// Intervalul anului universitar: 1 septembrie 2025 – 31 august 2026
+const START_DATE = new Date(2025, 8, 1); // septembrie = 8
+const END_DATE = new Date(2026, 7, 31);  // august = 7
+
+// Azi: 11.11.2025, săptămână impară
+const TODAY = new Date(2025, 10, 11); // month index 10 = noiembrie
+const TODAY_WEEK_IS_ODD = true;
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+// ---------------- Orar semestrul 1 (săptămâni pare/impare) ----------------
+// 1 = Luni ... 5 = Vineri
+
+const oddWeekSchedule: Record<number, { subject: string; time: string }[]> = {
+  1: [
+    { subject: "Algebra liniară și geometria analitică", time: "13:30-15:00" },
+    { subject: "Programarea calculatoarelor", time: "15:15-16:45" },
+  ],
+  2: [
+    { subject: "Tehnici de programare aplicată", time: "11:30-13:00" },
+    { subject: "Analiza matematică", time: "13:30-15:00" },
+    { subject: "Tehnici de programare aplicată", time: "15:15-16:45" },
+  ],
+  3: [
+    { subject: "Tehnici de programare aplicată", time: "11:30-13:00" },
+    { subject: "Programarea calculatoarelor", time: "13:30-15:00" },
+  ],
+  4: [
+    { subject: "Etica și securitate umană", time: "11:30-13:00" },
+    { subject: "Limba engleză", time: "13:30-15:00" },
+  ],
+  5: [
+    { subject: "Programarea calculatoarelor", time: "08:00-09:30" },
+    { subject: "Ingineria calculatoarelor și produse program", time: "09:45-11:15" },
+    { subject: "Etica și securitate umană", time: "11:30-13:00" },
+    { subject: "Tehnici de programare aplicată", time: "13:30-15:00" },
+  ],
+};
+
+const evenWeekSchedule: Record<number, { subject: string; time: string }[]> = {
+  1: [
+    { subject: "Ingineria calculatoarelor și produse program", time: "09:45-11:15" },
+    { subject: "Algebra liniară și geometria analitică", time: "11:30-13:00" },
+    { subject: "Algebra liniară și geometria analitică", time: "13:30-15:00" },
+    { subject: "Programarea calculatoarelor", time: "15:15-16:45" },
+  ],
+  2: [
+    { subject: "Tehnici de programare aplicată", time: "11:30-13:00" },
+    { subject: "Analiza matematică", time: "13:30-15:00" },
+    { subject: "Analiza matematică", time: "15:15-16:45" },
+  ],
+  3: [
+    { subject: "Tehnici de programare aplicată", time: "11:30-13:00" },
+    { subject: "Programarea calculatoarelor", time: "13:30-15:00" },
+  ],
+  4: [
+    { subject: "Educație fizică", time: "09:45-11:15" },
+    { subject: "Etica și securitate umană", time: "11:30-13:00" },
+    { subject: "Limba engleză", time: "13:30-15:00" },
+    { subject: "Analiza matematică", time: "15:15-16:45" },
+  ],
+  5: [
+    { subject: "Ingineria calculatoarelor și produse program", time: "09:45-11:15" },
+    { subject: "Etica și securitate umană", time: "11:30-13:00" },
+    { subject: "Tehnici de programare aplicată", time: "13:30-15:00" },
+  ],
+};
+
+// ---------------- Helpers calendar ----------------
+
+function generateMonthDays(year: number, month: number) {
+  const firstDay = new Date(year, month, 1);
+  const jsDay = firstDay.getDay(); // 0=Sun..6=Sat
+  const firstDayOffset = (jsDay + 6) % 7; // mutăm Luni la index 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days: (number | null)[] = new Array(firstDayOffset).fill(null);
+  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+  return days;
+}
+
+function getSemester(month: number) {
+  if (month >= 8 && month <= 11)
+    return { name: "Semestrul 1", color: "bg-indigo-500", icon: CalendarDays };
+  if (month >= 0 && month <= 4)
+    return { name: "Semestrul 2", color: "bg-blue-500", icon: CalendarDays };
+  return { name: "Vacanță de vară", color: "bg-green-500", icon: Sun };
+}
+
+function startOfIsoWeek(d: Date) {
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const jsDay = date.getDay(); // 0=Sun..6=Sat
+  const isoIndex = (jsDay + 6) % 7; // 0=Mon..6=Sun
+  date.setDate(date.getDate() - isoIndex);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function isOddWeekForDate(d: Date) {
+  const base = startOfIsoWeek(TODAY);
+  const cell = startOfIsoWeek(d);
+  const diffWeeks = Math.round((cell.getTime() - base.getTime()) / MS_PER_WEEK);
+  return diffWeeks % 2 === 0 ? TODAY_WEEK_IS_ODD : !TODAY_WEEK_IS_ODD;
+}
+
+function subjectHasClassOnDate(subjectName: string, date: Date) {
+  const jsDay = date.getDay();
+  const isoWeekday = ((jsDay + 6) % 7) + 1; // 1=Mon..7=Sun
+  if (isoWeekday < 1 || isoWeekday > 5) return null;
+
+  const isOdd = isOddWeekForDate(date);
+  const weekSchedule = isOdd ? oddWeekSchedule : evenWeekSchedule;
+  const dayLessons = weekSchedule[isoWeekday] || [];
+  const lesson = dayLessons.find((l) => l.subject === subjectName);
+  return lesson || null;
+}
+
+// ---------------- Discipline ----------------
 
 const semester1Subjects = [
   {
     name: "Ingineria calculatoarelor și produse program",
-    professor: "Dr. Popescu Adrian",
-    absences: ["12/10/2025"],
+    absences: [] as string[],
     totalClasses: 14,
     color: "text-blue-600",
   },
   {
     name: "Algebra liniară și geometria analitică",
-    professor: "Prof. Ionescu Maria",
-    absences: ["02/10/2025", "23/10/2025"],
+    absences: [] as string[],
     totalClasses: 12,
     color: "text-indigo-600",
   },
   {
     name: "Programarea calculatoarelor",
-    professor: "Conf. Gheorghe Radu",
-    absences: [],
+    absences: [] as string[],
     totalClasses: 14,
     color: "text-cyan-600",
   },
   {
     name: "Analiza matematică",
-    professor: "Dr. Marin Elena",
-    absences: ["05/09/2025", "19/09/2025", "03/10/2025"],
+    absences: [] as string[],
     totalClasses: 13,
     color: "text-green-600",
   },
   {
     name: "Limba engleză",
-    professor: "Lect. Ana Petrescu",
-    absences: ["10/09/2025"],
+    absences: [] as string[],
     totalClasses: 10,
     color: "text-purple-600",
   },
   {
     name: "Educație fizică",
-    professor: "Prof. Mihai Dima",
-    absences: ["17/09/2025"],
+    absences: [] as string[],
     totalClasses: 8,
     color: "text-orange-600",
   },
   {
     name: "Tehnici de programare aplicată",
-    professor: "Asist. Ioana Munteanu",
-    absences: [],
+    absences: [] as string[],
     totalClasses: 11,
     color: "text-pink-600",
   },
   {
     name: "Etica și securitate umană",
-    professor: "Dr. Raluca Tudor",
-    absences: ["06/10/2025"],
+    absences: [] as string[],
     totalClasses: 9,
     color: "text-yellow-600",
   },
@@ -88,57 +212,49 @@ const semester1Subjects = [
 const semester2Subjects = [
   {
     name: "Tehnologii WEB",
-    professor: "Dr. Alexandru Vasile",
-    absences: [],
+    absences: [] as string[],
     totalClasses: 14,
     color: "text-cyan-600",
   },
   {
     name: "Programarea procedurală",
-    professor: "Prof. Ioana Marinescu",
-    absences: ["15/03/2025"],
+    absences: [] as string[],
     totalClasses: 13,
     color: "text-blue-700",
   },
   {
     name: "Matematică Discretă",
-    professor: "Conf. Daniel Pop",
-    absences: ["22/02/2025"],
+    absences: [] as string[],
     totalClasses: 12,
     color: "text-indigo-600",
   },
   {
     name: "Probabilitate și statistică",
-    professor: "Dr. Alina Dobre",
-    absences: [],
+    absences: [] as string[],
     totalClasses: 11,
     color: "text-green-700",
   },
   {
     name: "Structuri de date şi algoritmi",
-    professor: "Dr. Mihai Georgescu",
-    absences: ["12/04/2025"],
+    absences: [] as string[],
     totalClasses: 12,
     color: "text-pink-700",
   },
   {
     name: "Baze de date",
-    professor: "Conf. Elena Stoica",
-    absences: [],
+    absences: [] as string[],
     totalClasses: 14,
     color: "text-yellow-700",
   },
   {
     name: "Limba engleză",
-    professor: "Lect. Ana Petrescu",
-    absences: ["05/03/2025"],
+    absences: [] as string[],
     totalClasses: 10,
     color: "text-purple-600",
   },
   {
     name: "Educație fizică",
-    professor: "Prof. Mihai Dima",
-    absences: [],
+    absences: [] as string[],
     totalClasses: 8,
     color: "text-orange-600",
   },
@@ -161,73 +277,53 @@ const icons: Record<string, React.ComponentType<any>> = {
   "Baze de date": Database,
 };
 
-const weekDays = ["Lun", "Mar", "Mie", "Joi", "Vin", "Sâm", "Dum"];
-const months = [
-  "Ianuarie",
-  "Februarie",
-  "Martie",
-  "Aprilie",
-  "Mai",
-  "Iunie",
-  "Iulie",
-  "August",
-  "Septembrie",
-  "Octombrie",
-  "Noiembrie",
-  "Decembrie",
-];
-
-function generateMonthDays(year: number, month: number) {
-  const firstDay = new Date(year, month, 1);
-  const jsDay = firstDay.getDay();
-  const firstDayOffset = (jsDay + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const days: (number | null)[] = new Array(firstDayOffset).fill(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(i);
-  return days;
-}
-
-function getSemester(month: number) {
-  if (month >= 8 && month <= 11) return { name: "Semestrul 1", color: "bg-indigo-500", icon: CalendarDays };
-  if (month >= 0 && month <= 4) return { name: "Semestrul 2", color: "bg-blue-500", icon: CalendarDays };
-  return { name: "Vacanță de vară", color: "bg-green-500", icon: Sun };
-}
-
-// ---------- Main component ----------
+// ---------------- Componentă principală ----------------
 
 function AbsenceSection() {
   const [showAbsences, setShowAbsences] = useState(false);
-  const [currentYear, setCurrentYear] = useState(2025);
-  const [currentMonth, setCurrentMonth] = useState(9); // 0-based, 9 = Octombrie
+  const [currentYear, setCurrentYear] = useState(TODAY.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(TODAY.getMonth());
   const [isCompact, setIsCompact] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState(semester1Subjects[0]);
+  const [lastSelectedBySemester, setLastSelectedBySemester] = useState({
+    sem1: semester1Subjects[0].name,
+    sem2: semester2Subjects[0].name,
+  });
+
   const layoutRef = useRef<HTMLDivElement | null>(null);
 
   const semester = getSemester(currentMonth);
   const isVacation = semester.name === "Vacanță de vară";
   const subjects = semester.name === "Semestrul 1" ? semester1Subjects : semester2Subjects;
-  const [selectedSubject, setSelectedSubject] = useState(subjects[0]);
 
-  // Layout resize logic
+  // layout responsive în funcție de lățimea cardului
   useEffect(() => {
     const BREAKPOINT = 960;
     const updateLayout = () => {
       const width = layoutRef.current?.getBoundingClientRect().width ?? window.innerWidth;
       setIsCompact(width < BREAKPOINT);
     };
-
     updateLayout();
     window.addEventListener("resize", updateLayout);
     return () => window.removeEventListener("resize", updateLayout);
   }, []);
 
-  // Resetăm disciplina selectată când se schimbă semestrul (dar nu în vacanță)
+  // păstrăm disciplina selectată pe semestru
   useEffect(() => {
-    if (!isVacation) {
-      setSelectedSubject(subjects[0]);
+    if (semester.name === "Semestrul 1") {
+      const name = lastSelectedBySemester.sem1;
+      const found = semester1Subjects.find((s) => s.name === name) ?? semester1Subjects[0];
+      setSelectedSubject(found);
+    } else if (semester.name === "Semestrul 2") {
+      const name = lastSelectedBySemester.sem2;
+      const found = semester2Subjects.find((s) => s.name === name) ?? semester2Subjects[0];
+      setSelectedSubject(found);
     }
-  }, [semester.name]);
+    // pentru vacanță nu schimbăm disciplina selectată
+  }, [semester.name, lastSelectedBySemester]);
 
-  const percentNumber = (selectedSubject.absences.length / selectedSubject.totalClasses) * 100;
+  const percentNumber =
+    (selectedSubject.absences.length / Math.max(selectedSubject.totalClasses, 1)) * 100;
   const percent = percentNumber.toFixed(1);
   const maxAbsences = Math.floor(selectedSubject.totalClasses * 0.3);
   const remaining = Math.max(0, maxAbsences - selectedSubject.absences.length);
@@ -239,18 +335,30 @@ function AbsenceSection() {
       ? "text-yellow-600 font-semibold"
       : "text-green-700";
 
-  const handlePrevMonth = () =>
-    setCurrentMonth((prev) => (prev === 0 ? (setCurrentYear((y) => y - 1), 11) : prev - 1));
+  // Navigare lună, limitată la 1 septembrie 2025 – 31 august 2026
+  const handlePrevMonth = () => {
+    // Dacă suntem deja în septembrie 2025, nu mai mergem înapoi
+    if (currentYear === 2025 && currentMonth === 8) return;
 
-  const handleNextMonth = () =>
-    setCurrentMonth((prev) => (prev === 11 ? (setCurrentYear((y) => y + 1), 0) : prev + 1));
+    setCurrentMonth((prev) =>
+      prev === 0 ? (setCurrentYear((y) => y - 1), 11) : prev - 1
+    );
+  };
 
-  const getStatus = (day: number, wasAbsent: boolean, isFuture: boolean, isClassDay: boolean) => {
-    if (wasAbsent) return { status: "Absent", color: "text-red-700", time: "08:00 - 09:30" };
-    if (isFuture && isClassDay)
-      return { status: "Urmează să participe", color: "text-blue-700", time: "08:00 - 09:30" };
-    if (isClassDay) return { status: "Prezent", color: "text-green-700", time: "08:00 - 09:30" };
-    return null;
+  const handleNextMonth = () => {
+    // Dacă suntem deja în august 2026, nu mai mergem înainte
+    if (currentYear === 2026 && currentMonth === 7) return;
+
+    setCurrentMonth((prev) =>
+      prev === 11 ? (setCurrentYear((y) => y + 1), 0) : prev + 1
+    );
+  };
+
+  const getStatus = (isFuture: boolean, hasClass: boolean, time?: string | null) => {
+    if (!hasClass) return null;
+    if (isFuture)
+      return { status: "Urmează să participe", color: "text-blue-700", time: time ?? "" };
+    return { status: "Prezent", color: "text-green-700", time: time ?? "" };
   };
 
   const SemesterIcon = semester.icon;
@@ -276,7 +384,7 @@ function AbsenceSection() {
                 isCompact ? "grid-cols-1" : "grid-cols-3"
               }`}
             >
-              {/* Discipline Section */}
+              {/* Discipline */}
               <div className="space-y-3 sm:pr-6">
                 <h2 className="text-lg font-semibold mb-2 text-blue-900 flex items-center gap-2 border-b border-blue-400 pb-2">
                   <Sparkles className="text-cyan-500" /> Discipline
@@ -286,7 +394,7 @@ function AbsenceSection() {
                     <Sun className="w-10 h-10 text-yellow-500 mb-2 animate-bounce" />
                     <h3 className="text-xl font-bold mb-1">Vacanță plăcută!</h3>
                     <p className="text-sm max-w-xs">
-                      Bucură-te de vară, relaxează-te și reîncarcă-ți energia pentru un nou semestru plin de realizări!
+                      Bucură-te de vară, relaxează-te și reîncarcă-ți energia pentru un nou semestru!
                     </p>
                     <Smile className="w-6 h-6 text-yellow-600 mt-3 animate-pulse" />
                   </div>
@@ -297,7 +405,16 @@ function AbsenceSection() {
                     return (
                       <div
                         key={subject.name}
-                        onClick={() => setSelectedSubject(subject)}
+                        onClick={() => {
+                          setSelectedSubject(subject);
+                          setLastSelectedBySemester((prev) =>
+                            semester.name === "Semestrul 1"
+                              ? { ...prev, sem1: subject.name }
+                              : semester.name === "Semestrul 2"
+                              ? { ...prev, sem2: subject.name }
+                              : prev
+                          );
+                        }}
                         className={`cursor-pointer p-3 rounded-xl border-2 transition-all shadow-md flex items-center gap-3 relative overflow-hidden group ${
                           isSelected
                             ? "bg-gradient-to-r from-indigo-200 via-cyan-100 to-blue-50 border-cyan-400 text-blue-900"
@@ -319,8 +436,8 @@ function AbsenceSection() {
                 )}
               </div>
 
-              {/* Calendar Section */}
-              <div className="px-0 sm:px-6 bg-white/90 rounded-xl shadow-md p-4 border border-blue-200 overflow-hidden">
+              {/* Calendar */}
+              <div className="px-0 sm:px-6 bg-white/90 rounded-xl shadow-md p-4 border border-blue-200">
                 <div className="flex flex-wrap sm:flex-nowrap sm:items-center sm:justify-between w-full gap-2 sm:gap-3 mb-2 border-b border-blue-400 pb-2 text-center sm:text-left">
                   <div className="flex items-center gap-2 shrink-0">
                     <Sparkles className="text-indigo-400" />
@@ -356,81 +473,110 @@ function AbsenceSection() {
                   </div>
                 </div>
 
-                {!isVacation && (
-                  <>
-                    <div className="hidden sm:grid grid-cols-7 text-center text-blue-900 font-semibold mb-2">
-                      {weekDays.map((day) => (
-                        <div
-                          key={day}
-                          className="py-2 border-b border-blue-200 flex items-center justify-center w-full"
-                        >
-                          {day}
-                        </div>
-                      ))}
-                    </div>
-
+                {/* header zile săptămână */}
+                <div className="hidden sm:grid grid-cols-7 text-center text-blue-900 font-semibold mb-2">
+                  {weekDays.map((day) => (
                     <div
-                      className="grid grid-cols-7 border border-blue-200 rounded-lg overflow-visible text-center auto-rows-fr"
-                      style={{ gridAutoRows: "minmax(40px, 1fr)" }}
+                      key={day}
+                      className="py-2 border-b border-blue-200 flex items-center justify-center w-full"
                     >
-                      {generateMonthDays(currentYear, currentMonth).map((day, i) => {
-                        const monthStr = String(currentMonth + 1).padStart(2, "0");
-                        const date = day
-                          ? `${day.toString().padStart(2, "0")}/${monthStr}/${currentYear}`
-                          : null;
-                        const isClassDay = !!day && day % 2 === 0;
-                        const isFuture = !!day && day > 20;
-                        const wasAbsent = !!date && selectedSubject.absences.includes(date);
-                        const statusInfo = day && getStatus(day, wasAbsent, isFuture, isClassDay || false);
-
-                        let bg = "bg-transparent opacity-60";
-                        if (isClassDay) bg = "bg-green-200 text-green-900";
-                        if (wasAbsent) bg = "bg-red-200 text-red-900";
-                        if (isFuture && isClassDay) bg = "bg-blue-200 text-blue-900";
-
-                        return (
-                          <div
-                            key={`${currentYear}-${currentMonth}-${i}`}
-                            className="relative border border-blue-100 flex items-center justify-center text-sm font-medium group w-full aspect-square"
-                          >
-                            {day && (
-                              <>
-                                <div
-                                  className={`w-full h-full flex items-center justify-center ${bg} transition-transform hover:scale-105 rounded-md shadow-sm`}
-                                >
-                                  {day}
-                                </div>
-                                {statusInfo && (
-                                  <div className="absolute z-50 bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-white/95 text-blue-900 text-xs px-3 py-1 rounded-lg shadow-lg border border-blue-200 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap min-w-max">
-                                    <span className={`${statusInfo.color} font-semibold`}>
-                                      {statusInfo.status}
-                                    </span>
-                                    <br />
-                                    <span className="text-[11px] text-gray-600">{statusInfo.time}</span>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-l border-b border-blue-200 rotate-45" />
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {day}
                     </div>
-                  </>
-                )}
+                  ))}
+                </div>
+
+                {/* Grid calendar */}
+                <div
+                  className="grid grid-cols-7 border border-blue-200 rounded-lg overflow-visible text-center auto-rows-fr"
+                  style={{ gridAutoRows: "minmax(40px, 1fr)" }}
+                >
+                  {generateMonthDays(currentYear, currentMonth).map((day, i) => {
+                    const monthStr = String(currentMonth + 1).padStart(2, "0");
+                    const dateString = day
+                      ? `${day.toString().padStart(2, "0")}/${monthStr}/${currentYear}`
+                      : null;
+
+                    let lessonForSubject: { subject: string; time: string } | null = null;
+                    let isClassDay = false;
+                    let isFuture = false;
+                    let isToday = false;
+
+                    if (day) {
+                      const cellDate = new Date(currentYear, currentMonth, day);
+
+                      if (!isVacation) {
+                        const lesson = subjectHasClassOnDate(
+                          selectedSubject.name,
+                          cellDate
+                        );
+                        lessonForSubject = lesson;
+                        isClassDay = !!lesson;
+                      }
+
+                      const todayMid = new Date(
+                        TODAY.getFullYear(),
+                        TODAY.getMonth(),
+                        TODAY.getDate()
+                      );
+                      const cellMid = new Date(
+                        cellDate.getFullYear(),
+                        cellDate.getMonth(),
+                        cellDate.getDate()
+                      );
+                      isFuture = cellMid.getTime() > todayMid.getTime();
+                      isToday = cellMid.getTime() === todayMid.getTime();
+                    }
+
+                    const statusInfo =
+                      day && lessonForSubject
+                        ? getStatus(isFuture, true, lessonForSubject.time)
+                        : null;
+
+                    let bg = "bg-transparent opacity-60";
+                    if (isClassDay) bg = "bg-green-200 text-green-900";
+                    if (isFuture && isClassDay) bg = "bg-blue-200 text-blue-900";
+                    if (isToday) bg = "bg-yellow-200 text-yellow-900";
+
+                    return (
+                      <div
+                        key={`${currentYear}-${currentMonth}-${i}`}
+                        className="relative border border-blue-100 flex items-center justify-center text-sm font-medium group w-full aspect-square"
+                      >
+                        {day && (
+                          <>
+                            <div
+                              className={`w-full h-full flex items-center justify-center ${bg} transition-transform hover:scale-105 rounded-md shadow-sm`}
+                            >
+                              {day}
+                            </div>
+                            {statusInfo && (
+                              <div className="absolute z-50 bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white/95 text-blue-900 text-xs px-3 py-2 rounded-lg shadow-lg border border-blue-200 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none max-w-[240px] whitespace-normal break-words text-center">
+                                <span className={`${statusInfo.color} font-semibold block`}>
+                                  {statusInfo.status}
+                                </span>
+                                {statusInfo.time && (
+                                  <span className="text-[11px] text-gray-600 font-medium bg-gray-50 px-2 py-0.5 rounded-md inline-block mt-1 whitespace-nowrap">
+                                    {statusInfo.time}
+                                  </span>
+                                )}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-l border-b border-blue-200 rotate-45" />
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Details Section */}
+              {/* Detalii */}
               <div className="pl-0 sm:pl-6 mt-6 sm:mt-0">
                 <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-blue-900 border-b border-blue-400 pb-2">
                   <Info className="h-5 w-5 text-blue-700" /> Detalii
                 </h3>
                 {!isVacation && (
                   <div className="space-y-2 bg-gradient-to-br from-white/80 via-blue-50/80 to-indigo-100/70 rounded-xl shadow-lg p-4 border-2 border-indigo-300">
-                    <p className="text-sm">
-                      <strong className="text-blue-900">Profesor:</strong>{" "}
-                      <span className="text-blue-800">{selectedSubject.professor}</span>
-                    </p>
                     <p className="text-sm">
                       <strong className="text-blue-900">Total absențe:</strong>{" "}
                       <span className="text-blue-800">{selectedSubject.absences.length}</span>
